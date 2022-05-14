@@ -252,6 +252,19 @@ if __name__ == '__main__':
     harc_plot.gl.make_dir(output_dir)
 
     # ## Define Station Locations
+    txs = {}
+    tx = {}
+    tx['lat']       =  40.68
+    tx['lon']       = -105.04
+    tx['color']     = 'red'
+    txs['WWV']      = tx
+
+    tx = {}
+    tx['lat']       =  45.291165502
+    tx['lon']       = -75.753663652
+    tx['color']     = 'yellow'
+    txs['CHU']  = tx
+
     tx = {}
     tx['st_id'] = 'WWV'
     tx['lat']   =  40.68
@@ -391,7 +404,22 @@ if __name__ == '__main__':
 
     alpha = 0.5
     # Plot Transmitter
-    ax.scatter(tx['lon'],tx['lat'],marker='*',s=650,color='r',label=tx['st_id'],ec='black')
+    for tx_call,tx in txs.items():
+        tx_lat      = tx['lat']
+        tx_lon      = tx['lon']
+        tx_color    = tx['color']
+
+        ax.scatter(tx_lon,tx_lat,marker='*',s=650,color=tx_color,ec='black')
+
+        kws = {}
+        kws['fontsize']     = 16
+        kws['fontweight']   = 'bold'
+        kws['ha']           = 'center'
+        kws['x']            = tx_lon
+        kws['y']            = tx_lat+1.00
+        kws['s']            = tx_call
+
+        ax.text(**kws)
 
     # Plot Ground Locations of Grapes
     for rinx,row in grapes.iterrows():
