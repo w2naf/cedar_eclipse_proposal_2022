@@ -306,24 +306,54 @@ class EclipseData(object):
                     arrowprops=dict(facecolor='red', ec = 'none', arrowstyle="simple",
                 connectionstyle="arc3,rad=-0.1"))        
 
-#            ax.annotate('', xy=(lon_1,lat_1), xytext=(lon_0,lat_0),zorder=950,
-#                    xycoords='data', size=25,
-#                    arrowprops={'arrowstyle':'->','lw':3,'ls':'-','mutation_scale':30,
-#                        'facecolor':'red','ec':'none'})
-
-
-            
-                
         return {}
 
 
+def overlay_grapes(nodes,ax,style='existing'):
+    # Plot Ground Locations of Grapes
+    lats    = nodes['lat'].values
+    lons    = nodes['lon'].values
+
+    if style=='existing':
+        label   = 'Existing Grapes'
+        color   = 'k'
+        size    = 15
+        marker  = '^'
+        zorder  = 1000
+    elif style == 'proposed':
+        label   = 'Proposed Grapes'
+        color   = 'k'
+        size    = 15
+        marker  = '^'
+        zorder  = 1001
+
+    ax.scatter(lons,lats,label=label,color=color,s=size,marker=marker,zorder=zorder)
+
+    for tx_call,tx in txs.items():
+        if style=='existing':
+            lats    = nodes[tx_call+'_mid_lat'].values
+            lons    = nodes[tx_call+'_mid_lon'].values
+            label   = '{!s}-RX Existing Midpoints'.format(tx_call)
+            color   = tx['color']
+            size    = 25
+            zorder  = 1002
+
+        elif style == 'proposed':
+            lats    = nodes[tx_call+'_mid_lat'].values
+            lons    = nodes[tx_call+'_mid_lon'].values
+            label   = '{!s}-RX Proposed Midpoints'.format(tx_call)
+            color   = tx['color']
+            size    = 25
+            zorder  = 1003
+        ax.scatter(lons,lats,label=label,color=color,s=size,ec='k',zorder=zorder)
+
 if __name__ == '__main__':
-    output_dir = 'output/map'
+    output_dir      = 'output/map'
+    region          = 'US'
+    plot_eclipse    = False
+
     harc_plot.gl.clear_dir(output_dir)
 
-    # Choose Region
-    region = 'US'
-    
     # Select on Nodes in Chosen Region
     rgn_dct   = regions[region]
     rgn_lat_0 = rgn_dct['lat_0']
@@ -351,54 +381,55 @@ if __name__ == '__main__':
     nodes           = load_and_filter_existing_nodes(node_csv,region=region)
     nodes           = compute_midpoints(nodes,txs)
 
-    # ## Load Eclipse Data
-    eclipses = {}
+    if plot_eclipse:
+        # ## Load Eclipse Data
+        eclipses = {}
 
-    meta = {}
-    meta['obsc_min']    = 0.85
-    meta['alpha']       = 0.25
-    meta['cmap']        = mpl.cm.Purples
-    fname = 'data/eclipse_calc/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon_MAX_OBSCURATION.csv.bz2'
+        meta = {}
+        meta['obsc_min']    = 0.85
+        meta['alpha']       = 0.25
+        meta['cmap']        = mpl.cm.Purples
+        fname = 'data/eclipse_calc/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon_MAX_OBSCURATION.csv.bz2'
 
-    tas = []
-    ta  = {}
-    ta['lat']       = 45.
-    ta['lon']       = -128.
-    ta['startEnd']  = 'start'
-    ta['tp']        = {'va':'bottom'}
-    tas.append(ta)
+        tas = []
+        ta  = {}
+        ta['lat']       = 45.
+        ta['lon']       = -128.
+        ta['startEnd']  = 'start'
+        ta['tp']        = {'va':'bottom'}
+        tas.append(ta)
 
-    ta  = {}
-    ta['lat']       = 22.
-    ta['lon']       = -90. 
-    ta['startEnd']  = 'end'
-    tas.append(ta)
-    meta['track_annotate'] = tas
+        ta  = {}
+        ta['lat']       = 22.
+        ta['lon']       = -90. 
+        ta['startEnd']  = 'end'
+        tas.append(ta)
+        meta['track_annotate'] = tas
 
-    ecl = EclipseData(fname,meta=meta)
-    eclipses['2023']    = ecl
+        ecl = EclipseData(fname,meta=meta)
+        eclipses['2023']    = ecl
 
-    meta = {}
-    meta['obsc_min']    = 0.975
-    fname                   = 'data/eclipse_calc/20240408.1500_20240408.2100_300kmAlt_0.2dlat_0.2dlon/20240408.1500_20240408.2100_300kmAlt_0.2dlat_0.2dlon_MAX_OBSCURATION.csv.bz2'
-    tas = []
-    ta  = {}
-    ta['lat']       = 20
-    ta['lon']       = -107.
-    ta['startEnd']  = 'start'
-    tas.append(ta)
+        meta = {}
+        meta['obsc_min']    = 0.975
+        fname                   = 'data/eclipse_calc/20240408.1500_20240408.2100_300kmAlt_0.2dlat_0.2dlon/20240408.1500_20240408.2100_300kmAlt_0.2dlat_0.2dlon_MAX_OBSCURATION.csv.bz2'
+        tas = []
+        ta  = {}
+        ta['lat']       = 20
+        ta['lon']       = -107.
+        ta['startEnd']  = 'start'
+        tas.append(ta)
 
-    ta  = {}
-    ta['lat']       =  47.
-    ta['lon']       = -61. 
-    ta['startEnd']  = 'end'
-    tas.append(ta)
-    meta['track_annotate'] = tas
-    ecl                     = EclipseData(fname,meta=meta)
-    ecl = EclipseData(fname,meta=meta)
-    eclipses['2024']    = ecl
+        ta  = {}
+        ta['lat']       =  47.
+        ta['lon']       = -61. 
+        ta['startEnd']  = 'end'
+        tas.append(ta)
+        meta['track_annotate'] = tas
+        ecl                     = EclipseData(fname,meta=meta)
+        ecl = EclipseData(fname,meta=meta)
+        eclipses['2024']    = ecl
 
-    # ## Plot on a Map
+    # Plot on a Map ################################################################ 
     projection = ccrs.PlateCarree()
     fig = plt.figure(figsize=(18,14))
     ax  = fig.add_subplot(1,1,1,projection=projection)
@@ -407,9 +438,10 @@ if __name__ == '__main__':
     ax.add_feature(cfeature.BORDERS,edgecolor=border_color)
     ax.gridlines(draw_labels=True)
 
-    for ecl_year,ecl in eclipses.items():
-        ecl.overlay_obscuration(ax)
-        ecl.overlay_track(ax)
+    if plot_eclipse:
+        for ecl_year,ecl in eclipses.items():
+            ecl.overlay_obscuration(ax)
+            ecl.overlay_track(ax)
 
     alpha = 0.5
     # Plot Transmitter
@@ -430,23 +462,7 @@ if __name__ == '__main__':
 
         ax.text(**kws)
 
-    # Plot Ground Locations of Grapes
-    lats    = nodes['lat'].values
-    lons    = nodes['lon'].values
-    label   = 'Existing Grapes'
-    color   = 'k'
-    size    = 15
-    marker  = '^'
-    ax.scatter(lons,lats,label=label,color=color,s=size,marker=marker,zorder=1000)
-
-    for tx_call,tx in txs.items():
-        lats    = nodes[tx_call+'_mid_lat'].values
-        lons    = nodes[tx_call+'_mid_lon'].values
-        label   = '{!s}-RX Midpoints'.format(tx_call)
-        color   = tx['color']
-        size    = 25
-        ax.scatter(lons,lats,label=label,color=color,s=size,ec='k',zorder=1000)
-
+    overlay_grapes(nodes,ax,style='existing')
 
     ax.legend(loc='lower right',fontsize='large')
 
