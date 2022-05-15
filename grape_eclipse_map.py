@@ -232,7 +232,6 @@ class EclipseData(object):
         else:
             df_track = self.df_track
         
-
         # Annotate places specifed in meta['track_annotate'], but make sure
         # the places are actually on the track.
 
@@ -354,13 +353,6 @@ if __name__ == '__main__':
 
     harc_plot.gl.clear_dir(output_dir)
 
-    # Select on Nodes in Chosen Region
-    rgn_dct   = regions[region]
-    rgn_lat_0 = rgn_dct['lat_0']
-    rgn_lat_1 = rgn_dct['lat_1']
-    rgn_lon_0 = rgn_dct['lon_0']
-    rgn_lon_1 = rgn_dct['lon_1']
-
     # ## Define Station Locations
     txs = {}
     tx = {}
@@ -378,8 +370,8 @@ if __name__ == '__main__':
 
     # Load in data about existing Grapes.
     node_csv        = os.path.join('data','grape','nodelist_status.csv')
-    nodes           = load_and_filter_existing_nodes(node_csv,region=region)
-    nodes           = compute_midpoints(nodes,txs)
+    existing_nodes  = load_and_filter_existing_nodes(node_csv,region=region)
+    existing_nodes  = compute_midpoints(existing_nodes,txs)
 
     if plot_eclipse:
         # ## Load Eclipse Data
@@ -462,10 +454,16 @@ if __name__ == '__main__':
 
         ax.text(**kws)
 
-    overlay_grapes(nodes,ax,style='existing')
+    overlay_grapes(existing_nodes,ax,style='existing')
 
     ax.legend(loc='lower right',fontsize='large')
 
+    # Set Map Limits
+    rgn_dct   = regions[region]
+    rgn_lat_0 = rgn_dct['lat_0']
+    rgn_lat_1 = rgn_dct['lat_1']
+    rgn_lon_0 = rgn_dct['lon_0']
+    rgn_lon_1 = rgn_dct['lon_1']
     ax.set_xlim(rgn_lon_0,rgn_lon_1)
     ax.set_ylim(rgn_lat_0,rgn_lat_1)
 
