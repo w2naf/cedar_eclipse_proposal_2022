@@ -8,6 +8,9 @@ import datetime
 import numpy as np
 import pandas as pd
 
+from zipfile import ZipFile
+from bs4 import BeautifulSoup #Needs conda install -c anaconda lxml
+
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
@@ -41,6 +44,35 @@ rgn['lat_1'] =   50
 rgn['lon_0'] = -130
 rgn['lon_1'] =  -60
 regions['US'] = rgn
+
+
+def load_proposed_grapes(kmz_fpath):
+    """
+    Load the locations of proposed Grapes from a Google KMZ File.
+    kmz_fpath: path to kmz file with Placemarks
+    """
+    with ZipFile(kmz_fpath, 'r') as kmz:
+        kml = kmz.open(kmz.filelist[0].filename, 'r').read()
+    soup = BeautifulSoup(kml, 'xml')
+
+    # iterate over each TimeStep element in dwd:ForecastTimeSteps
+    df_list = []
+    steps = soup.find("kml:Document")
+    for step in steps.find_all("kml:Placemark"):
+        coords_str = step.find('kml:coordinates').text.split(',')
+        lon        = float(coords_str[0])
+        lat        = float(coords_str[1])
+        name       = step.find('kml:name').text
+
+        tmp = {}
+        tmp['name'] = name
+        tmp['lat']  = lat
+        tmp['lon']  = lon
+        df_list.append(tmp)
+
+    df = pd.DataFrame(df_list)
+    
+    return df
 
 def load_and_filter_existing_nodes(fpath,region=None,active_only=True):
     """
@@ -314,42 +346,48 @@ def overlay_grapes(nodes,ax,style='existing'):
     lons    = nodes['lon'].values
 
     if style=='existing':
-        label   = 'Existing Grapes'
+        label   = 'Existing HamSCI Sites'
         color   = 'k'
-        size    = 15
-        marker  = '^'
+        size    = 50
+        marker  = '*'
         zorder  = 1000
     elif style == 'proposed':
-        label   = 'Proposed Grapes'
+        label   = 'Additional Proposed Sites'
         color   = 'k'
-        size    = 15
+        size    = 20
         marker  = '^'
         zorder  = 1001
 
     ax.scatter(lons,lats,label=label,color=color,s=size,marker=marker,zorder=zorder)
 
     for tx_call,tx in txs.items():
-        if style=='existing':
-            lats    = nodes[tx_call+'_mid_lat'].values
-            lons    = nodes[tx_call+'_mid_lon'].values
-            label   = '{!s}-RX Existing Midpoints'.format(tx_call)
-            color   = tx['color']
-            size    = 25
-            zorder  = 1002
-
-        elif style == 'proposed':
-            lats    = nodes[tx_call+'_mid_lat'].values
-            lons    = nodes[tx_call+'_mid_lon'].values
-            label   = '{!s}-RX Proposed Midpoints'.format(tx_call)
-            color   = tx['color']
-            size    = 25
-            zorder  = 1003
+        lats    = nodes[tx_call+'_mid_lat'].values
+        lons    = nodes[tx_call+'_mid_lon'].values
+        label   = '{!s}-RX Midpoints'.format(tx_call)
+        color   = tx['color']
+        size    = 35
+        zorder  = 1002
+#        if style=='existing':
+#            lats    = nodes[tx_call+'_mid_lat'].values
+#            lons    = nodes[tx_call+'_mid_lon'].values
+#            label   = '{!s}-RX Existing Midpoints'.format(tx_call)
+#            color   = tx['color']
+#            size    = 25
+#            zorder  = 1002
+#
+#        elif style == 'proposed':
+#            lats    = nodes[tx_call+'_mid_lat'].values
+#            lons    = nodes[tx_call+'_mid_lon'].values
+#            label   = '{!s}-RX Proposed Midpoints'.format(tx_call)
+#            color   = tx['color']
+#            size    = 25
+#            zorder  = 1003
         ax.scatter(lons,lats,label=label,color=color,s=size,ec='k',zorder=zorder)
 
 if __name__ == '__main__':
     output_dir      = 'output/map'
     region          = 'US'
-    plot_eclipse    = False
+    plot_eclipse    = True
 
     harc_plot.gl.clear_dir(output_dir)
 
@@ -367,11 +405,17 @@ if __name__ == '__main__':
     tx['color']     = 'yellow'
     txs['CHU']  = tx
 
-
     # Load in data about existing Grapes.
     node_csv        = os.path.join('data','grape','nodelist_status.csv')
     existing_nodes  = load_and_filter_existing_nodes(node_csv,region=region)
     existing_nodes  = compute_midpoints(existing_nodes,txs)
+
+    # Load in proposed Grapes
+    proposed_nodes_csv  = os.path.join('data','grape','proposed_grapes.kmz')
+    proposed_nodes      = load_proposed_grapes(proposed_nodes_csv)
+    proposed_nodes      = compute_midpoints(proposed_nodes,txs)
+    proposed_out_csv    = os.path.join(output_dir,'proposed_grapes.csv')
+    proposed_nodes.to_csv(proposed_out_csv)
 
     if plot_eclipse:
         # ## Load Eclipse Data
@@ -454,9 +498,14 @@ if __name__ == '__main__':
 
         ax.text(**kws)
 
-    overlay_grapes(existing_nodes,ax,style='existing')
+    tf      = proposed_nodes['name'] == 'Proposed Grape 2'
+    exst_df = proposed_nodes[~tf]
+    overlay_grapes(exst_df,ax,style='existing')
 
-    ax.legend(loc='lower right',fontsize='large')
+    prop_df = proposed_nodes[tf]
+    overlay_grapes(prop_df,ax,style='proposed')
+
+    ax.legend(loc='lower right',fontsize='medium')
 
     # Set Map Limits
     rgn_dct   = regions[region]
