@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 
 import cartopy.crs as ccrs
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+import cartopy.feature as cfeature
 
 from harc_plot import geopack
 import harc_plot
@@ -20,6 +21,21 @@ import harc_plot
 import pickle
 
 Re = 6371 # Radius of the Earth in km
+
+regions = {}
+rgn = {}
+rgn['lat_0'] =  -90
+rgn['lat_1'] =   90
+rgn['lon_0'] = -180
+rgn['lon_1'] =  180
+regions['World'] = rgn
+
+rgn = {}
+rgn['lat_0'] =   20
+rgn['lat_1'] =   50
+rgn['lon_0'] = -130
+rgn['lon_1'] =  -60
+regions['US'] = rgn
 
 
 # In[2]:
@@ -251,6 +267,11 @@ if __name__ == '__main__':
 #    harc_plot.gl.clear_dir(output_dir)
     harc_plot.gl.make_dir(output_dir)
 
+
+    # Choose Region
+    region = 'US'
+
+
     # ## Define Station Locations
     txs = {}
     tx = {}
@@ -265,73 +286,49 @@ if __name__ == '__main__':
     tx['color']     = 'yellow'
     txs['CHU']  = tx
 
-    tx = {}
-    tx['st_id'] = 'WWV'
-    tx['lat']   =  40.68
-    tx['lon']   = -105.04
 
+    # Load in data about existing Grapes.
     node_csv    = os.path.join('data','grape','nodelist_status.csv')
     nodes = pd.read_csv(node_csv)
 
-    grapes = []
-
-    g = {}
-    g['st_id'] = 'kd2uhn'
-    g['lat']   =  40.6332
-    g['lon']   = -74.98881
-    g['color'] = 'purple'
-    grapes.append(g)
-
-    g = {}
-    g['st_id'] = 'n2rkl'
-    g['lat']   =  43.16319
-    g['lon']   = -76.12535
-    g['color'] = 'green'
-    grapes.append(g)
-
-    g = {}
-    g['st_id'] = 'n8obj'
-    g['lat']   =  41.321963
-    g['lon']   = -81.504739
-    g['color'] = 'cyan'
-    grapes.append(g)
-
-    grapes = pd.DataFrame(grapes)
-    grapes = grapes.set_index('st_id')
-    grapes
+    # Get only active notes
+    tf = nodes['Status'] == 'Data logged'
+    nodes = nodes[tf].copy()
 
 
-    # ## Calculate midpoints between Transmitter and Receivers
+    # Select on Nodes in Chosen Region
+    rgn_dct   = regions[region]
+    rgn_lat_0 = rgn_dct['lat_0']
+    rgn_lat_1 = rgn_dct['lat_1']
+    rgn_lon_0 = rgn_dct['lon_0']
+    rgn_lon_1 = rgn_dct['lon_1']
 
-    # In[7]:
+    tf = np.logical_and(nodes['Latitude'] >= rgn_lat_0,nodes['Latitude'] <= rgn_lat_1)
+    nodes = nodes[tf].copy()
 
+    tf = np.logical_and(nodes['Longitude'] >= rgn_lon_0,nodes['Longitude'] <= rgn_lon_1)
+    nodes = nodes[tf].copy()
+    
+    # Compute TX Midpoints
+    nodes_tmp = []
+    for rinx,row in nodes.iterrows():
+        for call,tx in txs.items():
+            lat_0 = tx['lat']
+            lon_0 = tx['lon']
+            lat_1 = row['Latitude']
+            lon_1 = row['Longitude']
 
-    grapes
+            dist  = Re*harc_plot.geopack.greatCircleDist(lat_0,lon_0,lat_1,lon_1)
+            azm   =    harc_plot.geopack.greatCircleAzm(lat_0,lon_0,lat_1,lon_1)
+            res   = geopack.greatCircleMove(lat_0,lon_0,dist/2.,azm,alt=0,Re=Re)
 
-    grapes_new = []
-    for rinx, row in grapes.iterrows():
-        # print(rinx)
-        lat = row['lat']
-        lon = row['lon']
-        
-        azm = geopack.greatCircleAzm(tx['lat'],tx['lon'],lat,lon)
-        rng = geopack.greatCircleDist(tx['lat'],tx['lon'],lat,lon)*Re
-        res = geopack.greatCircleMove(tx['lat'],tx['lon'],rng/2.,azm,alt=0,Re=Re)
-        
-        row['mid_lat'] = res[0][0]
-        row['mid_lon'] = res[1][0]
-        
-        grapes_new.append(row)
-        
-    grapes = pd.DataFrame(grapes_new)
-    grapes
+            row[call+'_mid_lat'] = res[0][0]
+            row[call+'_mid_lon'] = res[1][0]
+        nodes_tmp.append(row)
 
+    nodes = pd.DataFrame(nodes_tmp)
 
     # ## Load Eclipse Data
-
-    # In[8]:
-
-
     eclipses = {}
 
     meta = {}
@@ -370,7 +367,7 @@ if __name__ == '__main__':
     tas.append(ta)
 
     ta  = {}
-    ta['lat']       = 47.
+    ta['lat']       =  47.
     ta['lon']       = -61. 
     ta['startEnd']  = 'end'
     tas.append(ta)
@@ -380,22 +377,13 @@ if __name__ == '__main__':
 #    ecl = get_eclipse_obj(fname,meta,output_dir)
     eclipses['2024']    = ecl
 
-
-    # In[9]:
-
-
-    df_track_csv = 'data/eclipse_calc/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon/20231014.1400_20231014.2100_300kmAlt_0.2dlat_0.2dlon_ECLIPSE_TRACK.csv.bz2'
-    df_track = pd.read_csv(df_track_csv,comment='#')
-    # df_track = df_track.set_index('date_ut')
-
-
     # ## Plot on a Map
-
-
     projection = ccrs.PlateCarree()
     fig = plt.figure(figsize=(18,14))
     ax  = fig.add_subplot(1,1,1,projection=projection)
-    ax.coastlines()
+    border_color = '0.80'
+    ax.coastlines(color=border_color)
+    ax.add_feature(cfeature.BORDERS,edgecolor=border_color)
     ax.gridlines(draw_labels=True)
 
     for ecl_year,ecl in eclipses.items():
@@ -422,31 +410,28 @@ if __name__ == '__main__':
         ax.text(**kws)
 
     # Plot Ground Locations of Grapes
-    for rinx,row in grapes.iterrows():
-        lat   = row['lat']
-        lon   = row['lon']
-        label = rinx.upper()
-        color = row['color']
-        ax.scatter([lon],[lat],label=label,c=[mpl.colors.to_rgb(color)],alpha=alpha)
-        
-    # Plot Grape Midpoints
-    for rinx,row in grapes.iterrows():
-        lat   = row['mid_lat']
-        lon   = row['mid_lon']
-        label = '{!s} Midpoint'.format(rinx.upper())
-        color = row['color']
+    lats    = nodes['Latitude'].values
+    lons    = nodes['Longitude'].values
+    label   = 'Existing Grapes'
+    color   = 'k'
+    size    = 15
+    marker  = '^'
+    ax.scatter(lons,lats,label=label,color=color,s=size,marker=marker,zorder=1000)
 
-        ax.scatter([lon],[lat],label=label,c=[mpl.colors.to_rgb(color)],marker='D',s=100)
+    for tx_call,tx in txs.items():
+        lats    = nodes[tx_call+'_mid_lat'].values
+        lons    = nodes[tx_call+'_mid_lon'].values
+        label   = '{!s}-RX Midpoints'.format(tx_call)
+        color   = tx['color']
+        size    = 25
+        ax.scatter(lons,lats,label=label,color=color,s=size,ec='k',zorder=1000)
+
 
     ax.legend(loc='lower right',fontsize='large')
-        
-    # # World Limits
-    # ax.set_xlim(-180,180)
-    # ax.set_ylim(-90,90)
 
-    # US Limits
-    ax.set_xlim(-130,-60)
-    ax.set_ylim(20,55)
+    ax.set_xlim(rgn_lon_0,rgn_lon_1)
+    ax.set_ylim(rgn_lat_0,rgn_lat_1)
 
     fpath = os.path.join(output_dir,'map.png')
     fig.savefig(fpath,bbox_inches='tight')
+    import ipdb; ipdb.set_trace()
