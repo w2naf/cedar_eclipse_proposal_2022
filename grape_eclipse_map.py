@@ -42,7 +42,47 @@ rgn['lon_0'] = -130
 rgn['lon_1'] =  -60
 regions['US'] = rgn
 
-def compute_midpoints(nodes,txs,lat_key_in='Latitude',lon_key_in='Longitude'):
+def load_and_filter_existing_nodes(fpath,region=None,active_only=True):
+    """
+    Load Grape Locations from nodelist_status.csv.
+    fpath: path to nodelist_status.csv
+    region: None or string matching entry in regions dictionary.
+            If in regions dictionary, only stations withing the specified
+            region will be included.
+    active_only: If True, will only return stations with Status == Data Logged.
+
+    Returns DataFrame
+    """
+
+    nodes   = pd.read_csv(fpath)
+
+    # Rename Latitude/Longitude Columns to match rest of this code convetion.
+    cols    = {'Latitude':'lat','Longitude':'lon'}
+    nodes   = nodes.rename(columns=cols)
+
+    if active_only:
+        # Get only active notes
+        tf      = nodes['Status'] == 'Data logged'
+        nodes   = nodes[tf].copy()
+
+    if region is not None:
+        # Filter by region.
+        rgn_dct   = regions[region]
+        rgn_lat_0 = rgn_dct['lat_0']
+        rgn_lat_1 = rgn_dct['lat_1']
+        rgn_lon_0 = rgn_dct['lon_0']
+        rgn_lon_1 = rgn_dct['lon_1']
+
+        tf = np.logical_and(nodes['lat'] >= rgn_lat_0,nodes['lat'] <= rgn_lat_1)
+        nodes = nodes[tf].copy()
+
+
+        tf = np.logical_and(nodes['lon'] >= rgn_lon_0,nodes['lon'] <= rgn_lon_1)
+        nodes = nodes[tf].copy()
+
+    return nodes
+
+def compute_midpoints(nodes,txs,lat_key_in='lat',lon_key_in='lon'):
     """
     Compute midpoints between transmitters and receiver nodes and append to nodes
     data frame.
@@ -283,6 +323,13 @@ if __name__ == '__main__':
 
     # Choose Region
     region = 'US'
+    
+    # Select on Nodes in Chosen Region
+    rgn_dct   = regions[region]
+    rgn_lat_0 = rgn_dct['lat_0']
+    rgn_lat_1 = rgn_dct['lat_1']
+    rgn_lon_0 = rgn_dct['lon_0']
+    rgn_lon_1 = rgn_dct['lon_1']
 
     # ## Define Station Locations
     txs = {}
@@ -300,28 +347,9 @@ if __name__ == '__main__':
 
 
     # Load in data about existing Grapes.
-    node_csv    = os.path.join('data','grape','nodelist_status.csv')
-    nodes = pd.read_csv(node_csv)
-
-    # Get only active notes
-    tf = nodes['Status'] == 'Data logged'
-    nodes = nodes[tf].copy()
-
-
-    # Select on Nodes in Chosen Region
-    rgn_dct   = regions[region]
-    rgn_lat_0 = rgn_dct['lat_0']
-    rgn_lat_1 = rgn_dct['lat_1']
-    rgn_lon_0 = rgn_dct['lon_0']
-    rgn_lon_1 = rgn_dct['lon_1']
-
-    tf = np.logical_and(nodes['Latitude'] >= rgn_lat_0,nodes['Latitude'] <= rgn_lat_1)
-    nodes = nodes[tf].copy()
-
-    tf = np.logical_and(nodes['Longitude'] >= rgn_lon_0,nodes['Longitude'] <= rgn_lon_1)
-    nodes = nodes[tf].copy()
-    
-    nodes   = compute_midpoints(nodes,txs)
+    node_csv        = os.path.join('data','grape','nodelist_status.csv')
+    nodes           = load_and_filter_existing_nodes(node_csv,region=region)
+    nodes           = compute_midpoints(nodes,txs)
 
     # ## Load Eclipse Data
     eclipses = {}
@@ -403,8 +431,8 @@ if __name__ == '__main__':
         ax.text(**kws)
 
     # Plot Ground Locations of Grapes
-    lats    = nodes['Latitude'].values
-    lons    = nodes['Longitude'].values
+    lats    = nodes['lat'].values
+    lons    = nodes['lon'].values
     label   = 'Existing Grapes'
     color   = 'k'
     size    = 15
