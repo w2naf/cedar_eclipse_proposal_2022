@@ -340,7 +340,7 @@ class EclipseData(object):
         return {}
 
 
-def overlay_grapes(nodes,ax,style='existing'):
+def overlay_grapes(nodes,ax,style='existing',label_midpoints=True):
     # Plot Ground Locations of Grapes
     lats    = nodes['lat'].values
     lons    = nodes['lon'].values
@@ -363,7 +363,10 @@ def overlay_grapes(nodes,ax,style='existing'):
     for tx_call,tx in txs.items():
         lats    = nodes[tx_call+'_mid_lat'].values
         lons    = nodes[tx_call+'_mid_lon'].values
-        label   = '{!s}-RX Midpoints'.format(tx_call)
+        if label_midpoints:
+            label   = '{!s}-RX Midpoints'.format(tx_call)
+        else:
+            label   = None
         color   = tx['color']
         size    = 35
         zorder  = 1002
@@ -500,7 +503,7 @@ if __name__ == '__main__':
 
     tf      = proposed_nodes['name'] == 'Proposed Grape 2'
     exst_df = proposed_nodes[~tf]
-    overlay_grapes(exst_df,ax,style='existing')
+    overlay_grapes(exst_df,ax,style='existing',label_midpoints=False)
 
     prop_df = proposed_nodes[tf]
     overlay_grapes(prop_df,ax,style='proposed')
@@ -515,6 +518,8 @@ if __name__ == '__main__':
     rgn_lon_1 = rgn_dct['lon_1']
     ax.set_xlim(rgn_lon_0,rgn_lon_1)
     ax.set_ylim(rgn_lat_0,rgn_lat_1)
+
+    ax.set_title('Locations of Proposed Grape 2 Receivers')
 
     fpath = os.path.join(output_dir,'map.png')
     fig.savefig(fpath,bbox_inches='tight')
