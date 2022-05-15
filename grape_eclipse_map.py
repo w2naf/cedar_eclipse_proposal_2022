@@ -18,7 +18,12 @@ import cartopy.feature as cfeature
 from harc_plot import geopack
 import harc_plot
 
-import pickle
+mpl.rcParams['font.size']      = 12
+mpl.rcParams['font.weight']    = 'bold'
+mpl.rcParams['axes.grid']      = True
+mpl.rcParams['grid.linestyle'] = ':'
+mpl.rcParams['figure.figsize'] = np.array([15, 8])
+mpl.rcParams['axes.xmargin']   = 0
 
 Re = 6371 # Radius of the Earth in km
 
@@ -37,27 +42,37 @@ rgn['lon_0'] = -130
 rgn['lon_1'] =  -60
 regions['US'] = rgn
 
+def compute_midpoints(nodes,txs,lat_key_in='Latitude',lon_key_in='Longitude'):
+    """
+    Compute midpoints between transmitters and receiver nodes and append to nodes
+    data frame.
 
-# In[2]:
+    nodes:  DataFrame containing receivers
+    txs:    DataFrame containing transmitter information
+    lat_key_in: Column name identifying latitudes in nodes DataFrame
+    lon_key_in: Column name identifying longitudes in nodes DataFrame
 
-mpl.rcParams['font.size']      = 12
-mpl.rcParams['font.weight']    = 'bold'
-mpl.rcParams['axes.grid']      = True
-mpl.rcParams['grid.linestyle'] = ':'
-mpl.rcParams['figure.figsize'] = np.array([15, 8])
-mpl.rcParams['axes.xmargin']   = 0
+    """
+    # Compute TX Midpoints
+    nodes_tmp = []
+    for rinx,row in nodes.iterrows():
+        for call,tx in txs.items():
+            lat_0 = tx['lat']
+            lon_0 = tx['lon']
+            lat_1 = row[lat_key_in]
+            lon_1 = row[lon_key_in]
 
-def get_eclipse_obj(fname,meta,output_dir):
-    bname       = os.path.basename(fname)
-    pkl_path    = os.path.join(output_dir,bname+'.p')
-    if not os.path.exists(pkl_path):
-        ecl = EclipseData(fname,meta=meta)
-        with open(pkl_path,'wb') as pkl:
-            pickle.dump(ecl,pkl)
-    else:
-        with open(pkl_path,'rb') as pkl:
-            ecl = pickle.load(pkl)
-    return ecl
+            dist  = Re*harc_plot.geopack.greatCircleDist(lat_0,lon_0,lat_1,lon_1)
+            azm   =    harc_plot.geopack.greatCircleAzm(lat_0,lon_0,lat_1,lon_1)
+            res   = geopack.greatCircleMove(lat_0,lon_0,dist/2.,azm,alt=0,Re=Re)
+
+            row[call+'_mid_lat'] = res[0][0]
+            row[call+'_mid_lon'] = res[1][0]
+        nodes_tmp.append(row)
+
+    nodes = pd.DataFrame(nodes_tmp)
+
+    return nodes
 
 class EclipseData(object):
     def __init__(self,fname,meta={},track_kwargs={}):
@@ -264,13 +279,10 @@ class EclipseData(object):
 
 if __name__ == '__main__':
     output_dir = 'output/map'
-#    harc_plot.gl.clear_dir(output_dir)
-    harc_plot.gl.make_dir(output_dir)
-
+    harc_plot.gl.clear_dir(output_dir)
 
     # Choose Region
     region = 'US'
-
 
     # ## Define Station Locations
     txs = {}
@@ -309,24 +321,7 @@ if __name__ == '__main__':
     tf = np.logical_and(nodes['Longitude'] >= rgn_lon_0,nodes['Longitude'] <= rgn_lon_1)
     nodes = nodes[tf].copy()
     
-    # Compute TX Midpoints
-    nodes_tmp = []
-    for rinx,row in nodes.iterrows():
-        for call,tx in txs.items():
-            lat_0 = tx['lat']
-            lon_0 = tx['lon']
-            lat_1 = row['Latitude']
-            lon_1 = row['Longitude']
-
-            dist  = Re*harc_plot.geopack.greatCircleDist(lat_0,lon_0,lat_1,lon_1)
-            azm   =    harc_plot.geopack.greatCircleAzm(lat_0,lon_0,lat_1,lon_1)
-            res   = geopack.greatCircleMove(lat_0,lon_0,dist/2.,azm,alt=0,Re=Re)
-
-            row[call+'_mid_lat'] = res[0][0]
-            row[call+'_mid_lon'] = res[1][0]
-        nodes_tmp.append(row)
-
-    nodes = pd.DataFrame(nodes_tmp)
+    nodes   = compute_midpoints(nodes,txs)
 
     # ## Load Eclipse Data
     eclipses = {}
@@ -353,7 +348,6 @@ if __name__ == '__main__':
     meta['track_annotate'] = tas
 
     ecl = EclipseData(fname,meta=meta)
-#    ecl = get_eclipse_obj(fname,meta,output_dir)
     eclipses['2023']    = ecl
 
     meta = {}
@@ -374,7 +368,6 @@ if __name__ == '__main__':
     meta['track_annotate'] = tas
     ecl                     = EclipseData(fname,meta=meta)
     ecl = EclipseData(fname,meta=meta)
-#    ecl = get_eclipse_obj(fname,meta,output_dir)
     eclipses['2024']    = ecl
 
     # ## Plot on a Map
