@@ -350,13 +350,13 @@ def overlay_grapes(nodes,ax,style='existing',label_midpoints=True):
         color   = 'k'
         size    = 50
         marker  = '*'
-        zorder  = 1000
+        zorder  = 1003
     elif style == 'proposed':
         label   = 'Additional Proposed Sites'
         color   = 'k'
         size    = 20
         marker  = '^'
-        zorder  = 1001
+        zorder  = 1003
 
     ax.scatter(lons,lats,label=label,color=color,s=size,marker=marker,zorder=zorder)
 
@@ -370,21 +370,6 @@ def overlay_grapes(nodes,ax,style='existing',label_midpoints=True):
         color   = tx['color']
         size    = 35
         zorder  = 1002
-#        if style=='existing':
-#            lats    = nodes[tx_call+'_mid_lat'].values
-#            lons    = nodes[tx_call+'_mid_lon'].values
-#            label   = '{!s}-RX Existing Midpoints'.format(tx_call)
-#            color   = tx['color']
-#            size    = 25
-#            zorder  = 1002
-#
-#        elif style == 'proposed':
-#            lats    = nodes[tx_call+'_mid_lat'].values
-#            lons    = nodes[tx_call+'_mid_lon'].values
-#            label   = '{!s}-RX Proposed Midpoints'.format(tx_call)
-#            color   = tx['color']
-#            size    = 25
-#            zorder  = 1003
         ax.scatter(lons,lats,label=label,color=color,s=size,ec='k',zorder=zorder)
 
 if __name__ == '__main__':
